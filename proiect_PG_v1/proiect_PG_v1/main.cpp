@@ -43,6 +43,9 @@ glm::mat3 normalMatrix;
 glm::vec3 lightDir;
 glm::vec3 lightColor;
 
+glm::vec3 pointLightPos;
+GLuint pointLightPosLoc;
+
 // shader uniform locations
 GLint modelLoc;
 GLint viewLoc;
@@ -66,6 +69,11 @@ GLboolean pressedKeys[1024];
 gps::Model3D nanosuit;
 gps::Model3D ground;
 GLfloat angle;
+
+// globals for light cube (directional light)
+gps::Model3D lightCube;
+gps::Shader lightShader;
+float lightAngle = 0.0f; // controls the rotation around the scene
 
 // shaders
 gps::Shader myBasicShader;
@@ -264,6 +272,14 @@ void processInput() {
     if (pressedKeys[GLFW_KEY_3]) { // Key 3: polygonal
         glPolygonMode(GL_FRONT_AND_BACK, GL_POINT); 
     }
+
+	// --- rotate light cource ---
+    if (pressedKeys[GLFW_KEY_J]) {
+        lightAngle -= 1.0f;
+    }
+    if (pressedKeys[GLFW_KEY_L]) {
+        lightAngle += 1.0f;
+    }
 }
 
 void initOpenGLWindow() {
@@ -294,12 +310,14 @@ void initModels() {
     //teapot.LoadModel("models/teapot/teapot20segUT.obj");
     nanosuit.LoadModel("objects/nanosuit/nanosuit.obj");
     ground.LoadModel("objects/ground/ground.obj");
+    lightCube.LoadModel("objects/cube/cube.obj");
 }
 
 void initShaders() {
 	myBasicShader.loadShader(
         "shaders/basic.vert",
         "shaders/basic.frag");
+    lightShader.loadShader("shaders/lightCube.vert", "shaders/lightCube.frag");
 }
 
 void initUniforms() {
@@ -338,8 +356,25 @@ void initUniforms() {
 	lightColorLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lightColor");
 	// send light color to shader
 	glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
+
+    // added:
+    // --- directional light ---
+    lightDir = glm::vec3(0.0f, 1.0f, 1.0f);
+    lightDirLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lightDir");
+    glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDir));
+
+    lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
+    lightColorLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lightColor");
+    glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
+
+    // --- point light ---
+    // positioned above the ground here
+    pointLightPos = glm::vec3(0.0f, 2.0f, 0.0f);
+    pointLightPosLoc = glGetUniformLocation(myBasicShader.shaderProgram, "pointLightPos");
+    glUniform3fv(pointLightPosLoc, 1, glm::value_ptr(pointLightPos));
 }
 
+/*
 void renderTeapot(gps::Shader shader) {
     //// select active shader program
     //shader.useShaderProgram();
@@ -380,6 +415,7 @@ void renderTeapot(gps::Shader shader) {
     // 3. Draw
     ground.Draw(myBasicShader);
 }
+*/
 
 void renderScene() {
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
@@ -389,33 +425,43 @@ void renderScene() {
 	// render the teapot
 	//renderTeapot(myBasicShader);
 
+    // 1. UPDATE LIGHT DIRECTION (Rotated)
     myBasicShader.useShaderProgram();
 
-    // --- DRAW NANOSUIT ---
-    // 1. Calculate Model Matrix: Rotate based on the 'angle' variable
-    model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    // Create a rotation matrix based on the angle
+    glm::mat4 lightRotation = glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
 
-    // 2. Calculate Normal Matrix: Must be updated because 'model' changed
-    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    // Apply rotation to the original light direction (0, 1, 1) or whatever you prefer
+    // Note: We use vec4 for multiplication, then grab xyz
+    glm::vec3 rotatedLightDir = glm::vec3(lightRotation * glm::vec4(0.0f, 1.0f, 1.0f, 0.0f));
 
-    // 3. Draw
+    // Send this dynamic direction to the shader so the Nanosuit lighting changes
+    glUniform3fv(lightDirLoc, 1, glm::value_ptr(rotatedLightDir));
+
+    // ... [Draw Nanosuit and Ground as normal using myBasicShader] ...
+    // (Keep your existing nanosuit/ground draw calls here)
     nanosuit.Draw(myBasicShader);
-
-
-    // --- DRAW GROUND ---
-    // 1. Calculate Model Matrix: The reference code translates it down and scales it
-    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(0.5f));
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-    // 2. Calculate Normal Matrix: Must be updated again for the ground
-    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-
-    // 3. Draw
     ground.Draw(myBasicShader);
+
+
+    // 2. DRAW THE LIGHT CUBE (Visual representation)
+    lightShader.useShaderProgram();
+
+    // Send Camera matrices to the light shader
+    glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
+    glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
+
+    // Calculate Model Matrix for the Cube
+    // A. Rotate it same as the light direction
+    model = lightRotation;
+    // B. Translate it "out" so it orbits at a distance (e.g., 2 units away along the light vector)
+    model = glm::translate(model, glm::vec3(0.0f, 1.0f, 1.0f) * 2.0f);
+    // C. Scale it down so it's a small box, not a giant one
+    model = glm::scale(model, glm::vec3(0.05f, 0.05f, 0.05f));
+
+    glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+    lightCube.Draw(lightShader);
 
 }
 
