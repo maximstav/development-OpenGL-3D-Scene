@@ -1,0 +1,22 @@
+# Visual Studio files
+.vs/
+*.user
+*.suo
+*.userosscache
+*.sln.docstates
+*.vcxproj.filters
+
+# Compiled files
+*.exe
+*.dll
+*.pdb
+*.ilk
+*.cache
+
+# Directories
+bin/
+obj/
+Debug/
+Release/
+x64/
+x86/
