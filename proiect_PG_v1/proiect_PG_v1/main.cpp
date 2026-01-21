@@ -57,7 +57,7 @@ gps::Camera myCamera(
     glm::vec3(0.0f, 0.0f, -10.0f),
     glm::vec3(0.0f, 1.0f, 0.0f));
 
-GLfloat cameraSpeed = 0.1f;
+GLfloat cameraSpeed = 0.05f;
 
 GLboolean pressedKeys[1024];
 
@@ -341,17 +341,44 @@ void initUniforms() {
 }
 
 void renderTeapot(gps::Shader shader) {
-    // select active shader program
-    shader.useShaderProgram();
+    //// select active shader program
+    //shader.useShaderProgram();
+    ////send teapot model matrix data to shader
+    //glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+    ////send teapot normal matrix data to shader
+    //glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    //// draw teapot
+    //teapot.Draw(shader);
 
-    //send teapot model matrix data to shader
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    myBasicShader.useShaderProgram();
+
+    // --- DRAW NANOSUIT ---
+    // 1. Calculate Model Matrix: Rotate based on the 'angle' variable
+    model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
     glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
 
-    //send teapot normal matrix data to shader
+    // 2. Calculate Normal Matrix: Must be updated because 'model' changed
+    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
     glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
 
-    // draw teapot
-    teapot.Draw(shader);
+    // 3. Draw
+    nanosuit.Draw(myBasicShader);
+
+
+    // --- DRAW GROUND ---
+    // 1. Calculate Model Matrix: The reference code translates it down and scales it
+    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    model = glm::scale(model, glm::vec3(0.5f));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+    // 2. Calculate Normal Matrix: Must be updated again for the ground
+    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+    // 3. Draw
+    ground.Draw(myBasicShader);
 }
 
 void renderScene() {
@@ -360,7 +387,35 @@ void renderScene() {
 	//render the scene
 
 	// render the teapot
-	renderTeapot(myBasicShader);
+	//renderTeapot(myBasicShader);
+
+    myBasicShader.useShaderProgram();
+
+    // --- DRAW NANOSUIT ---
+    // 1. Calculate Model Matrix: Rotate based on the 'angle' variable
+    model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+    // 2. Calculate Normal Matrix: Must be updated because 'model' changed
+    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+    // 3. Draw
+    nanosuit.Draw(myBasicShader);
+
+
+    // --- DRAW GROUND ---
+    // 1. Calculate Model Matrix: The reference code translates it down and scales it
+    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    model = glm::scale(model, glm::vec3(0.5f));
+    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
+
+    // 2. Calculate Normal Matrix: Must be updated again for the ground
+    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
+
+    // 3. Draw
+    ground.Draw(myBasicShader);
 
 }
 
