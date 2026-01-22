@@ -58,26 +58,35 @@ float computeShadow()
 {
     // 1. Perform perspective divide
     vec3 normalizedCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
-
+    
     // 2. Transform to [0,1] range
     normalizedCoords = normalizedCoords * 0.5 + 0.5;
+    
+    // 3. Keep the shadow at 0.0 when outside the far_plane region of the light's frustum.
+    if(normalizedCoords.z > 1.0)
+        return 0.0;
 
-    // 3. Get closest depth value from light's perspective
-    float closestDepth = texture(shadowMap, normalizedCoords.xy).r;
-
-    // 4. Get depth of current fragment from light's perspective
+    // 4. Calculate bias (slightly increased to work with PCF)
+    float bias = 0.005f; 
     float currentDepth = normalizedCoords.z;
 
-    // 5. Calculate bias (simple constant bias)
-    float bias = 0.005f;
-
-    // 6. Check for shadow
-    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
-
-    // 7. Over sampling fix (if z > 1.0, it is outside the light frustum)
-    if (normalizedCoords.z > 1.0)
-        shadow = 0.0;
-
+    // 5. PCF (Percentage-Closer Filtering) Loop
+    float shadow = 0.0;
+    vec2 texelSize = 1.0 / textureSize(shadowMap, 0); // dynamic texture size
+    
+    // Sample a 3x3 grid around the current fragment
+    for(int x = -1; x <= 1; ++x)
+    {
+        for(int y = -1; y <= 1; ++y)
+        {
+            float pcfDepth = texture(shadowMap, normalizedCoords.xy + vec2(x, y) * texelSize).r; 
+            shadow += currentDepth - bias > pcfDepth ? 1.0 : 0.0;        
+        }    
+    }
+    
+    // Average the results (9 samples)
+    shadow /= 9.0;
+    
     return shadow;
 }
 

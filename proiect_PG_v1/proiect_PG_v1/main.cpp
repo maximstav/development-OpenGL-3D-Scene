@@ -520,8 +520,12 @@ void renderScene() {
     glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
     glClear(GL_DEPTH_BUFFER_BIT);
 
+    glCullFace(GL_FRONT); // Render back faces to the shadow map to fix acne
+
     // Draw scene
     drawObjects(depthMapShader, true);
+
+    glCullFace(GL_BACK); // Restore normal culling for the actual render
 
     glBindFramebuffer(GL_FRAMEBUFFER, 0);
 
