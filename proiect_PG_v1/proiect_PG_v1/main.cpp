@@ -386,7 +386,7 @@ void initUniforms() {
 	// create projection matrix
 	projection = glm::perspective(glm::radians(45.0f),
                                (float)myWindow.getWindowDimensions().width / (float)myWindow.getWindowDimensions().height,
-                               0.1f, 20.0f);
+                               0.1f, 50.0f);
 	projectionLoc = glGetUniformLocation(myBasicShader.shaderProgram, "projection");
 	// send projection matrix to shader
 	glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));	
@@ -494,7 +494,7 @@ glm::mat4 computeLightSpaceTrMatrix() {
     glm::vec3 rotatedLightDir = glm::vec3(lightRotation * glm::vec4(0.0f, 1.0f, 1.0f, 0.0f));
 
     glm::vec3 lightDirN = glm::normalize(rotatedLightDir);
-    glm::vec3 lightPos = lightDirN * 20.0f; // Move light back so it sees the scene
+    glm::vec3 lightPos = lightDirN * 10.0f; // Move light back so it sees the scene
     glm::vec3 target = glm::vec3(0.0f);
     glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
 
@@ -607,7 +607,7 @@ void renderScene() {
 
     // Position cube at the light source
     model = lightRotation;
-    model = glm::translate(model, glm::vec3(0.0f, 1.0f, 1.0f) * 20.0f); // Same 20.0f distance as in computeLightSpaceTrMatrix
+    model = glm::translate(model, glm::vec3(0.0f, 1.0f, 1.0f) * 10.0f); // Same distance as in computeLightSpaceTrMatrix
     model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
     glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
