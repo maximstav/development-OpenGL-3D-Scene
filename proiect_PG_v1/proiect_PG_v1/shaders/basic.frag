@@ -22,6 +22,7 @@ uniform sampler2D diffuseTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D shadowMap;
 uniform int initAlpha; // 1 = Check Alpha, 0 = Ignore Alpha
+uniform int isFlat; // 1 = Flat Shading, 0 = Smooth Shading
 
 // Lighting Constants
 vec3 ambient;
@@ -38,7 +39,7 @@ float quadratic = 0.032f;
 
 float computeFog()
 {
-    float fogDensity = 0.05f;
+    float fogDensity = 0.07f;
     
     // Calculate position in View Space (Eye Space)
     vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
@@ -84,8 +85,18 @@ void computeDirLight()
 {
     // Calculate eye space positions
     vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
-    vec3 normalEye = normalize(normalMatrix * fNormal);
     vec3 viewDir = normalize(-fPosEye.xyz);
+    vec3 normalEye;
+    if (isFlat == 1) {
+        // FLAT SHADING: Compute the normal of the actual triangle geometry
+        // dFdx/dFdy calculate how the position changes across the screen pixels
+        vec3 xTangent = dFdx(fPosEye.xyz);
+        vec3 yTangent = dFdy(fPosEye.xyz);
+        normalEye = normalize(cross(xTangent, yTangent));
+    } else {
+        // SMOOTH SHADING: Use the interpolated vertex normal (Standard)
+        normalEye = normalize(normalMatrix * fNormal);
+    }
     
     // Light direction is already in view space if transformed in main.cpp, 
     // but typically we pass world space lightDir.
@@ -113,8 +124,18 @@ void computeDirLight()
 void computePointLight()
 {
     vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
-    vec3 normalEye = normalize(normalMatrix * fNormal);
     vec3 viewDir = normalize(-fPosEye.xyz);
+    vec3 normalEye;
+    if (isFlat == 1) {
+        // FLAT SHADING: Compute the normal of the actual triangle geometry
+        // dFdx/dFdy calculate how the position changes across the screen pixels
+        vec3 xTangent = dFdx(fPosEye.xyz);
+        vec3 yTangent = dFdy(fPosEye.xyz);
+        normalEye = normalize(cross(xTangent, yTangent));
+    } else {
+        // SMOOTH SHADING: Use the interpolated vertex normal (Standard)
+        normalEye = normalize(normalMatrix * fNormal);
+    }
 
     vec4 lightPosEye = view * vec4(pointLightPos, 1.0f);
     vec3 lightDirN = normalize(lightPosEye.xyz - fPosEye.xyz);
@@ -136,8 +157,18 @@ void computeSpotLight()
 {
     // 1. Get positions in Eye Space
     vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
-    vec3 normalEye = normalize(normalMatrix * fNormal);
     vec3 viewDir = normalize(-fPosEye.xyz);
+    vec3 normalEye;
+    if (isFlat == 1) {
+        // FLAT SHADING: Compute the normal of the actual triangle geometry
+        // dFdx/dFdy calculate how the position changes across the screen pixels
+        vec3 xTangent = dFdx(fPosEye.xyz);
+        vec3 yTangent = dFdy(fPosEye.xyz);
+        normalEye = normalize(cross(xTangent, yTangent));
+    } else {
+        // SMOOTH SHADING: Use the interpolated vertex normal (Standard)
+        normalEye = normalize(normalMatrix * fNormal);
+    }
 
     // 2. Spot Light Logic (Flashlight)
     // In Eye Space, camera is at (0,0,0) and looks down -Z (0,0,-1)

@@ -31,6 +31,10 @@ float lastY = 384.0f; // center of screen
 float yaw = -90.0f;   // face negative Z
 float pitch = 0.0f;
 
+// shading mode
+GLint isFlatLoc;
+int isFlat = 0; // 0 = Smooth (Default), 1 = Flat
+
 // window
 gps::Window myWindow;
 
@@ -273,16 +277,28 @@ void processInput() {
     }
 
     // --- visualization modes ---
-    if (pressedKeys[GLFW_KEY_1]) { // Key 1: Solid / Smooth
-        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL); 
-    }
-    
-    if (pressedKeys[GLFW_KEY_2]) { // Key 2: wireframe
-        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE); 
+    // Key 1: Smooth (Original Look)
+    if (pressedKeys[GLFW_KEY_1]) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        isFlat = 0; // Disable Flat shading (use Smooth)
     }
 
-    if (pressedKeys[GLFW_KEY_3]) { // Key 3: polygonal
-        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT); 
+    // Key 2: Wireframe
+    if (pressedKeys[GLFW_KEY_2]) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
+        isFlat = 0; // Lighting doesn't matter much here, but 0 is safer
+    }
+
+    // Key 3: Polygonal (Points)
+    if (pressedKeys[GLFW_KEY_3]) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
+        isFlat = 0;
+    }
+
+    // Key 4: Solid (Flat Shading)
+    if (pressedKeys[GLFW_KEY_4]) {
+        glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
+        isFlat = 1; // Enable Flat shading
     }
 
 	// --- rotate light cource ---
@@ -312,7 +328,7 @@ void initOpenGLState() {
     glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
 
 	glViewport(0, 0, myWindow.getWindowDimensions().width, myWindow.getWindowDimensions().height);
-    glEnable(GL_FRAMEBUFFER_SRGB);
+    // glEnable(GL_FRAMEBUFFER_SRGB);
 	glEnable(GL_DEPTH_TEST); // enable depth-testing
 	glDepthFunc(GL_LESS); // depth-testing interprets a smaller value as "closer"
 	glEnable(GL_CULL_FACE); // cull face
@@ -392,6 +408,9 @@ void initUniforms() {
     pointLightPos = glm::vec3(0.0f, 2.0f, 0.0f);
     pointLightPosLoc = glGetUniformLocation(myBasicShader.shaderProgram, "pointLightPos");
     glUniform3fv(pointLightPosLoc, 1, glm::value_ptr(pointLightPos));
+
+    isFlatLoc = glGetUniformLocation(myBasicShader.shaderProgram, "isFlat");
+    glUniform1i(isFlatLoc, isFlat);
 }
 
 /*
@@ -551,6 +570,7 @@ void renderScene() {
 
     myBasicShader.useShaderProgram();
 
+    glUniform1i(glGetUniformLocation(myBasicShader.shaderProgram, "isFlat"), isFlat);
     GLint initAlphaLoc = glGetUniformLocation(myBasicShader.shaderProgram, "initAlpha");
 
     // --- DRAW NANOSUIT (Solid Object) ---
