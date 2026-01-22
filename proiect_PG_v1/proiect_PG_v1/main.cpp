@@ -20,6 +20,7 @@
 #include "Shader.hpp"
 #include "Camera.hpp"
 #include "Model3D.hpp"
+#include "SkyBox.hpp"
 
 #include <iostream>
 
@@ -77,6 +78,17 @@ float lightAngle = 0.0f; // controls the rotation around the scene
 
 // shaders
 gps::Shader myBasicShader;
+
+// Shadow variables
+GLuint shadowMapFBO;
+GLuint depthMapTexture;
+const unsigned int SHADOW_WIDTH = 2048, SHADOW_HEIGHT = 2048; // High res for better quality
+
+gps::Shader depthMapShader;
+
+// skybox
+gps::SkyBox mySkyBox;
+gps::Shader skyboxShader;
 
 GLenum glCheckError_(const char *file, int line)
 {
@@ -296,7 +308,9 @@ void setWindowCallbacks() {
 }
 
 void initOpenGLState() {
-	glClearColor(0.7f, 0.7f, 0.7f, 1.0f);
+    // set clear clor to cray (matches fog color)
+    glClearColor(0.5f, 0.5f, 0.5f, 1.0f);
+
 	glViewport(0, 0, myWindow.getWindowDimensions().width, myWindow.getWindowDimensions().height);
     glEnable(GL_FRAMEBUFFER_SRGB);
 	glEnable(GL_DEPTH_TEST); // enable depth-testing
@@ -304,6 +318,9 @@ void initOpenGLState() {
 	glEnable(GL_CULL_FACE); // cull face
 	glCullFace(GL_BACK); // cull back face
 	glFrontFace(GL_CCW); // GL_CCW for counter clock-wise
+
+    glEnable(GL_BLEND);
+    glBlendFunc(GL_SRC_ALPHA, GL_ONE_MINUS_SRC_ALPHA);
 }
 
 void initModels() {
@@ -311,13 +328,26 @@ void initModels() {
     nanosuit.LoadModel("objects/nanosuit/nanosuit.obj");
     ground.LoadModel("objects/ground/ground.obj");
     lightCube.LoadModel("objects/cube/cube.obj");
+    skyboxShader.loadShader("shaders/skyboxShader.vert", "shaders/skyboxShader.frag");
+    skyboxShader.useShaderProgram();
 }
 
 void initShaders() {
-	myBasicShader.loadShader(
-        "shaders/basic.vert",
-        "shaders/basic.frag");
+	myBasicShader.loadShader("shaders/basic.vert", "shaders/basic.frag");
     lightShader.loadShader("shaders/lightCube.vert", "shaders/lightCube.frag");
+    depthMapShader.loadShader("shaders/depthMap.vert", "shaders/depthMap.frag");
+}
+
+void initSkyBox() {
+    std::vector<const GLchar*> faces;
+    faces.push_back("skybox/right.tga");
+    faces.push_back("skybox/left.tga");
+    faces.push_back("skybox/top.tga");
+    faces.push_back("skybox/bottom.tga");
+    faces.push_back("skybox/back.tga");
+    faces.push_back("skybox/front.tga");
+
+    mySkyBox.Load(faces);
 }
 
 void initUniforms() {
@@ -356,16 +386,6 @@ void initUniforms() {
 	lightColorLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lightColor");
 	// send light color to shader
 	glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
-
-    // added:
-    // --- directional light ---
-    lightDir = glm::vec3(0.0f, 1.0f, 1.0f);
-    lightDirLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lightDir");
-    glUniform3fv(lightDirLoc, 1, glm::value_ptr(lightDir));
-
-    lightColor = glm::vec3(1.0f, 1.0f, 1.0f);
-    lightColorLoc = glGetUniformLocation(myBasicShader.shaderProgram, "lightColor");
-    glUniform3fv(lightColorLoc, 1, glm::value_ptr(lightColor));
 
     // --- point light ---
     // positioned above the ground here
@@ -417,52 +437,162 @@ void renderTeapot(gps::Shader shader) {
 }
 */
 
-void renderScene() {
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+void initFBO() {
+    // Generate and bind the framebuffer
+    glGenFramebuffers(1, &shadowMapFBO);
 
-	//render the scene
+    // Create depth texture
+    glGenTextures(1, &depthMapTexture);
+    glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+    glTexImage2D(GL_TEXTURE_2D, 0, GL_DEPTH_COMPONENT,
+        SHADOW_WIDTH, SHADOW_HEIGHT, 0, GL_DEPTH_COMPONENT, GL_FLOAT, NULL);
 
-	// render the teapot
-	//renderTeapot(myBasicShader);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-    // 1. UPDATE LIGHT DIRECTION (Rotated)
-    myBasicShader.useShaderProgram();
+    // Clamp to border to fix over-sampling outside the map
+    float borderColor[] = { 1.0f, 1.0f, 1.0f, 1.0f };
+    glTexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, borderColor);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_CLAMP_TO_BORDER);
+    glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_CLAMP_TO_BORDER);
 
-    // Create a rotation matrix based on the angle
+    // Attach texture to framebuffer
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+    glFramebufferTexture2D(GL_FRAMEBUFFER, GL_DEPTH_ATTACHMENT, GL_TEXTURE_2D, depthMapTexture, 0);
+
+    // Tell OpenGL we are not rendering color data
+    glDrawBuffer(GL_NONE);
+    glReadBuffer(GL_NONE);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+}
+
+glm::mat4 computeLightSpaceTrMatrix() {
+    // 1. Light View
+    // We position the "light camera" somewhere along the lightDir vector
+    // lightDir is rotating, so we normalize it and multiply by a distance (e.g. 20.0f)
     glm::mat4 lightRotation = glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
-
-    // Apply rotation to the original light direction (0, 1, 1) or whatever you prefer
-    // Note: We use vec4 for multiplication, then grab xyz
     glm::vec3 rotatedLightDir = glm::vec3(lightRotation * glm::vec4(0.0f, 1.0f, 1.0f, 0.0f));
 
-    // Send this dynamic direction to the shader so the Nanosuit lighting changes
+    glm::vec3 lightDirN = glm::normalize(rotatedLightDir);
+    glm::vec3 lightPos = lightDirN * 20.0f; // Move light back so it sees the scene
+    glm::vec3 target = glm::vec3(0.0f);
+    glm::vec3 up = glm::vec3(0.0f, 1.0f, 0.0f);
+
+    glm::mat4 lightView = glm::lookAt(lightPos, target, up);
+
+    // 2. Light Projection (Orthographic for Directional Light)
+    // Adjust these bounds to fit your scene (ground and suit)
+    // ortho(left, right, bottom, top, near, far)
+    glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 50.0f);
+
+    return lightProjection * lightView;
+}
+
+// Draws the Nanosuit and Ground (does not handle shaders/matrices)
+void drawObjects(gps::Shader shader, bool depthPass) {
+    // --- DRAW NANOSUIT ---
+    shader.useShaderProgram();
+
+    model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
+    glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+    // Only send normal matrix if NOT in depth pass (depth pass doesn't need normals)
+    if (!depthPass) {
+        normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+        glUniformMatrix3fv(glGetUniformLocation(shader.shaderProgram, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    }
+
+    nanosuit.Draw(shader);
+
+    // --- DRAW GROUND ---
+    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
+    model = glm::scale(model, glm::vec3(0.5f));
+    glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+
+    if (!depthPass) {
+        normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
+        glUniformMatrix3fv(glGetUniformLocation(shader.shaderProgram, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
+    }
+
+    ground.Draw(shader);
+}
+
+void renderScene() {
+
+    // -----------------------------------------
+    // STEP 1: RENDER DEPTH MAP (Shadow Pass)
+    // -----------------------------------------
+    depthMapShader.useShaderProgram();
+
+    // Calculate Matrix
+    glm::mat4 lightSpaceTrMatrix = computeLightSpaceTrMatrix();
+
+    // Send to depth shader
+    glUniformMatrix4fv(glGetUniformLocation(depthMapShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceTrMatrix));
+
+    // Viewport for shadow map resolution
+    glViewport(0, 0, SHADOW_WIDTH, SHADOW_HEIGHT);
+    glBindFramebuffer(GL_FRAMEBUFFER, shadowMapFBO);
+    glClear(GL_DEPTH_BUFFER_BIT);
+
+    // Draw scene
+    drawObjects(depthMapShader, true);
+
+    glBindFramebuffer(GL_FRAMEBUFFER, 0);
+
+    // -----------------------------------------
+    // STEP 2: RENDER FINAL SCENE
+    // -----------------------------------------
+
+    // Reset viewport to window dimensions
+    glViewport(0, 0, myWindow.getWindowDimensions().width, myWindow.getWindowDimensions().height);
+    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
+
+    myBasicShader.useShaderProgram();
+
+    GLint initAlphaLoc = glGetUniformLocation(myBasicShader.shaderProgram, "initAlpha");
+
+    // --- DRAW NANOSUIT (Solid Object) ---
+    // Disable alpha discard
+    glUniform1i(initAlphaLoc, 0);
+
+    // Update View Matrix (camera)
+    view = myCamera.getViewMatrix();
+    glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
+
+    // Send Light Space Matrix to Basic Shader (for coordinate conversion)
+    glUniformMatrix4fv(glGetUniformLocation(myBasicShader.shaderProgram, "lightSpaceTrMatrix"), 1, GL_FALSE, glm::value_ptr(lightSpaceTrMatrix));
+
+    // Bind Shadow Map Texture to Unit 2
+    glActiveTexture(GL_TEXTURE2);
+    glBindTexture(GL_TEXTURE_2D, depthMapTexture);
+    glUniform1i(glGetUniformLocation(myBasicShader.shaderProgram, "shadowMap"), 2);
+
+    // Update Light Direction (Rotating) for lighting calculation
+    glm::mat4 lightRotation = glm::rotate(glm::mat4(1.0f), glm::radians(lightAngle), glm::vec3(0.0f, 1.0f, 0.0f));
+    glm::vec3 rotatedLightDir = glm::vec3(lightRotation * glm::vec4(0.0f, 1.0f, 1.0f, 0.0f));
     glUniform3fv(lightDirLoc, 1, glm::value_ptr(rotatedLightDir));
 
-    // ... [Draw Nanosuit and Ground as normal using myBasicShader] ...
-    // (Keep your existing nanosuit/ground draw calls here)
-    nanosuit.Draw(myBasicShader);
-    ground.Draw(myBasicShader);
+    // Draw scene with lighting
+    drawObjects(myBasicShader, false);
 
-
-    // 2. DRAW THE LIGHT CUBE (Visual representation)
+    // -----------------------------------------
+    // DRAW LIGHT CUBE
+    // -----------------------------------------
     lightShader.useShaderProgram();
-
-    // Send Camera matrices to the light shader
     glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "view"), 1, GL_FALSE, glm::value_ptr(view));
     glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "projection"), 1, GL_FALSE, glm::value_ptr(projection));
 
-    // Calculate Model Matrix for the Cube
-    // A. Rotate it same as the light direction
+    // Position cube at the light source
     model = lightRotation;
-    // B. Translate it "out" so it orbits at a distance (e.g., 2 units away along the light vector)
-    model = glm::translate(model, glm::vec3(0.0f, 1.0f, 1.0f) * 2.0f);
-    // C. Scale it down so it's a small box, not a giant one
-    model = glm::scale(model, glm::vec3(0.05f, 0.05f, 0.05f));
-
+    model = glm::translate(model, glm::vec3(0.0f, 1.0f, 1.0f) * 20.0f); // Same 20.0f distance as in computeLightSpaceTrMatrix
+    model = glm::scale(model, glm::vec3(0.5f, 0.5f, 0.5f));
     glUniformMatrix4fv(glGetUniformLocation(lightShader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
 
     lightCube.Draw(lightShader);
 
+    mySkyBox.Draw(skyboxShader, view, projection);
 }
 
 void cleanup() {
@@ -480,9 +610,11 @@ int main(int argc, const char * argv[]) {
     }
 
     initOpenGLState();
+	initFBO();
 	initModels();
 	initShaders();
 	initUniforms();
+    initSkyBox();
     setWindowCallbacks();
 
 	glCheckError();

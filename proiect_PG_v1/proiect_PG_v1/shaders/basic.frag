@@ -3,6 +3,7 @@
 in vec3 fPosition;
 in vec3 fNormal;
 in vec2 fTexCoords;
+in vec4 fragPosLightSpace;
 
 out vec4 fColor;
 
@@ -12,13 +13,14 @@ uniform mat4 view;
 uniform mat3 normalMatrix;
 
 // Lighting Uniforms
-uniform vec3 lightDir;      // Directional Light
+uniform vec3 lightDir; 
 uniform vec3 lightColor;
-uniform vec3 pointLightPos; // Point Light (World Space)
+uniform vec3 pointLightPos;
 
 // Texture Uniforms
 uniform sampler2D diffuseTexture;
 uniform sampler2D specularTexture;
+uniform sampler2D shadowMap;
 
 // Lighting Constants
 vec3 ambient;
@@ -28,19 +30,65 @@ float ambientStrength = 0.2f;
 float specularStrength = 0.5f;
 float shininess = 32.0f;
 
-// Attenuation Constants (hardcoded for distance ~50 units)
+// Attenuation Constants
 float constant = 1.0f;
 float linear = 0.09f;
 float quadratic = 0.032f;
 
+float computeFog()
+{
+    float fogDensity = 0.05f;
+    
+    // Calculate position in View Space (Eye Space)
+    vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
+    
+    // Calculate distance from camera
+    float fragmentDistance = length(fPosEye.xyz);
+    
+    // Calculate exponential fog factor: e^(-(distance * density)^2)
+    float fogFactor = exp(-pow(fragmentDistance * fogDensity, 2));
+    
+    // Clamp result between 0 and 1
+    return clamp(fogFactor, 0.0f, 1.0f);
+}
+
+float computeShadow()
+{
+    // 1. Perform perspective divide
+    vec3 normalizedCoords = fragPosLightSpace.xyz / fragPosLightSpace.w;
+
+    // 2. Transform to [0,1] range
+    normalizedCoords = normalizedCoords * 0.5 + 0.5;
+
+    // 3. Get closest depth value from light's perspective
+    float closestDepth = texture(shadowMap, normalizedCoords.xy).r;
+
+    // 4. Get depth of current fragment from light's perspective
+    float currentDepth = normalizedCoords.z;
+
+    // 5. Calculate bias (simple constant bias)
+    float bias = 0.005f;
+
+    // 6. Check for shadow
+    float shadow = currentDepth - bias > closestDepth ? 1.0 : 0.0;
+
+    // 7. Over sampling fix (if z > 1.0, it is outside the light frustum)
+    if (normalizedCoords.z > 1.0)
+        shadow = 0.0;
+
+    return shadow;
+}
+
 void computeDirLight()
 {
-    // 1. Get positions in Eye Space
+    // Calculate eye space positions
     vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
     vec3 normalEye = normalize(normalMatrix * fNormal);
     vec3 viewDir = normalize(-fPosEye.xyz);
-
-    // 2. Directional Light Logic
+    
+    // Light direction is already in view space if transformed in main.cpp, 
+    // but typically we pass world space lightDir.
+    // Assuming lightDir is World Space, we transform it to View Space:
     vec3 lightDirN = vec3(normalize(view * vec4(lightDir, 0.0f)));
 
     // Ambient
@@ -48,38 +96,36 @@ void computeDirLight()
 
     // Diffuse
     float diff = max(dot(normalEye, lightDirN), 0.0f);
-    diffuse += diff * lightColor;
-
+    
     // Specular
     vec3 reflectDir = reflect(-lightDirN, normalEye);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0f), shininess);
-    specular += specularStrength * spec * lightColor;
+    
+    // Calculate Shadow
+    float shadow = computeShadow();
+
+    // Modulate Diffuse and Specular
+    diffuse += (1.0f - shadow) * diff * lightColor;
+    specular += (1.0f - shadow) * specularStrength * spec * lightColor;
 }
 
 void computePointLight()
 {
-    // 1. Get positions in Eye Space
     vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
     vec3 normalEye = normalize(normalMatrix * fNormal);
     vec3 viewDir = normalize(-fPosEye.xyz);
 
-    // 2. Point Light Logic
-    // Transform point light position to View Space
     vec4 lightPosEye = view * vec4(pointLightPos, 1.0f);
     vec3 lightDirN = normalize(lightPosEye.xyz - fPosEye.xyz);
 
-    // Attenuation (Distance Fade)
     float dist = length(lightPosEye.xyz - fPosEye.xyz);
     float att = 1.0 / (constant + linear * dist + quadratic * (dist * dist));
 
-    // Ambient
     ambient += (ambientStrength * lightColor) * att;
 
-    // Diffuse
     float diff = max(dot(normalEye, lightDirN), 0.0f);
     diffuse += (diff * lightColor) * att;
 
-    // Specular
     vec3 reflectDir = reflect(-lightDirN, normalEye);
     float spec = pow(max(dot(viewDir, reflectDir), 0.0f), shininess);
     specular += (specularStrength * spec * lightColor) * att;
@@ -122,21 +168,28 @@ void computeSpotLight()
 
 void main() 
 {
-    // Reset colors
+    // discard fragments
+    vec4 colorFromTexture = texture(diffuseTexture, fTexCoords);
+    if(colorFromTexture.a < 0.1)
+        discard;
+
+    vec3 texDiffuse = colorFromTexture.rgb;
+    vec3 texSpecular = texture(specularTexture, fTexCoords).rgb;
+
     ambient = vec3(0.0f);
     diffuse = vec3(0.0f);
     specular = vec3(0.0f);
 
-    // Sum up all lights
     computeDirLight();
     computePointLight();
-    computeSpotLight();
 
-    // Combine with texture
-    vec3 texDiffuse = texture(diffuseTexture, fTexCoords).rgb;
-    vec3 texSpecular = texture(specularTexture, fTexCoords).rgb;
+    // computeSpotLight(); // uncomment for Spot Light (from camera)
 
     vec3 color = min((ambient + diffuse) * texDiffuse + specular * texSpecular, 1.0f);
+    
+    // Appy fog
+    float fogFactor = computeFog();
+    vec4 fogColor = vec4(0.5f, 0.5f, 0.5f, 1.0f); // Gray fog
 
-    fColor = vec4(color, 1.0f);
+    fColor = mix(fogColor, vec4(color, 1.0f), fogFactor);
 }
