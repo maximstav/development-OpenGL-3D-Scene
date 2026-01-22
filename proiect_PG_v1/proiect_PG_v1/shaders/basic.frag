@@ -21,6 +21,7 @@ uniform vec3 pointLightPos;
 uniform sampler2D diffuseTexture;
 uniform sampler2D specularTexture;
 uniform sampler2D shadowMap;
+uniform int initAlpha; // 1 = Check Alpha, 0 = Ignore Alpha
 
 // Lighting Constants
 vec3 ambient;
@@ -170,7 +171,7 @@ void main()
 {
     // discard fragments
     vec4 colorFromTexture = texture(diffuseTexture, fTexCoords);
-    if(colorFromTexture.a < 0.1)
+    if(initAlpha == 1 && colorFromTexture.a < 0.1)
         discard;
 
     vec3 texDiffuse = colorFromTexture.rgb;

@@ -557,6 +557,7 @@ void renderScene() {
     // Disable alpha discard
     glUniform1i(initAlphaLoc, 0);
 
+
     // Update View Matrix (camera)
     view = myCamera.getViewMatrix();
     glUniformMatrix4fv(viewLoc, 1, GL_FALSE, glm::value_ptr(view));
