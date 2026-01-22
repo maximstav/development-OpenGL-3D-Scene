@@ -1,0 +1,200 @@
+# Blender 5.0.1 MTL File: 'castle.blend'
+# www.blender.org
+
+newmtl BaseBastions
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/BaseBastions_baseColor.jpeg
+map_Bump -bm 1.000000 textures/BaseBastions_normal.png
+
+newmtl BaseCastle
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/BaseCastle_baseColor.jpeg
+map_Bump -bm 1.000000 textures/BaseCastle_normal.png
+
+newmtl BaseCastleUp
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/BaseCastleUp_baseColor.jpeg
+map_Bump -bm 1.000000 textures/BaseCastleUp_normal.png
+
+newmtl BaseCastle_02
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/BaseCastle_02_baseColor.jpeg
+map_Bump -bm 1.000000 textures/BaseCastle_02_normal.png
+
+newmtl BridgeControl
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/BridgeControl_baseColor.jpeg
+map_Bump -bm 1.000000 textures/BridgeControl_normal.png
+
+newmtl CannonBall
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/CannonBall_baseColor.jpeg
+map_Bump -bm 1.000000 textures/CannonBall_normal.png
+
+newmtl CastleGround
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.246096 0.246096 0.246096
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+illum 2
+map_Kd textures/CastleGround_baseColor.png
+map_d textures/CastleGround_baseColor.png
+map_Bump -bm 1.000000 textures/CastleGround_normal.png
+
+newmtl Envoirement_02
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/Envoirement_02_baseColor.jpeg
+map_Bump -bm 1.000000 textures/Envoirement_02_normal.png
+
+newmtl Envoriement_01
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/Envoriement_01_baseColor.jpeg
+map_Bump -bm 1.000000 textures/Envoriement_01_normal.png
+
+newmtl FrontBastions
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/FrontBastions_baseColor.jpeg
+map_Bump -bm 1.000000 textures/FrontBastions_normal.png
+
+newmtl Front_Rampart
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/Front_Rampart_baseColor.jpeg
+map_Bump -bm 1.000000 textures/Front_Rampart_normal.png
+
+newmtl MetalDoor
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/MetalDoor_baseColor.jpeg
+map_Bump -bm 1.000000 textures/MetalDoor_normal.png
+
+newmtl Rampart
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/Rampart_baseColor.jpeg
+map_Bump -bm 1.000000 textures/Rampart_normal.png
+
+newmtl RampartStone
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/RampartStone_baseColor.jpeg
+map_Bump -bm 1.000000 textures/RampartStone_normal.png
+
+newmtl Rope
+Ns 32.000008
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/Rope_baseColor.jpeg
+map_Bump -bm 1.000000 textures/Rope_normal.png
+
+newmtl SideBastions
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/SideBastions_baseColor.jpeg
+map_Bump -bm 1.000000 textures/SideBastions_normal.png
+
+newmtl Stairs
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/Stairs_baseColor.jpeg
+map_Bump -bm 1.000000 textures/Stairs_normal.png
+
+newmtl WoodDoor
+Ns 250.000000
+Ka 1.000000 1.000000 1.000000
+Ks 0.500000 0.500000 0.500000
+Ke 0.000000 0.000000 0.000000
+Ni 1.500000
+d 1.000000
+illum 2
+map_Kd textures/WoodDoor_baseColor.jpeg
+map_Bump -bm 1.000000 textures/WoodDoor_normal.png

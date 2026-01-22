@@ -72,7 +72,8 @@ GLboolean pressedKeys[1024];
 // models
 //gps::Model3D teapot;
 gps::Model3D nanosuit;
-gps::Model3D ground;
+gps::Model3D myCastle;
+
 GLfloat angle;
 
 // globals for light cube (directional light)
@@ -127,7 +128,7 @@ void windowResizeCallback(GLFWwindow* window, int width, int height) {
 
     glViewport(0, 0, width, height);
     // update projection matrix
-    projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 20.0f);
+    projection = glm::perspective(glm::radians(45.0f), (float)width / (float)height, 0.1f, 1000.0f);
     // send new projection to shader
     myBasicShader.useShaderProgram();
     glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));
@@ -342,8 +343,8 @@ void initOpenGLState() {
 void initModels() {
     //teapot.LoadModel("models/teapot/teapot20segUT.obj");
     nanosuit.LoadModel("objects/nanosuit/nanosuit.obj");
-    ground.LoadModel("objects/ground/ground.obj");
     lightCube.LoadModel("objects/cube/cube.obj");
+    myCastle.LoadModel("objects/castle/castle.obj");
     skyboxShader.loadShader("shaders/skyboxShader.vert", "shaders/skyboxShader.frag");
     skyboxShader.useShaderProgram();
 }
@@ -386,7 +387,7 @@ void initUniforms() {
 	// create projection matrix
 	projection = glm::perspective(glm::radians(45.0f),
                                (float)myWindow.getWindowDimensions().width / (float)myWindow.getWindowDimensions().height,
-                               0.1f, 50.0f);
+                               0.1f, 1000.0f);
 	projectionLoc = glGetUniformLocation(myBasicShader.shaderProgram, "projection");
 	// send projection matrix to shader
 	glUniformMatrix4fv(projectionLoc, 1, GL_FALSE, glm::value_ptr(projection));	
@@ -412,49 +413,6 @@ void initUniforms() {
     isFlatLoc = glGetUniformLocation(myBasicShader.shaderProgram, "isFlat");
     glUniform1i(isFlatLoc, isFlat);
 }
-
-/*
-void renderTeapot(gps::Shader shader) {
-    //// select active shader program
-    //shader.useShaderProgram();
-    ////send teapot model matrix data to shader
-    //glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-    ////send teapot normal matrix data to shader
-    //glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-    //// draw teapot
-    //teapot.Draw(shader);
-
-    glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT);
-
-    myBasicShader.useShaderProgram();
-
-    // --- DRAW NANOSUIT ---
-    // 1. Calculate Model Matrix: Rotate based on the 'angle' variable
-    model = glm::rotate(glm::mat4(1.0f), glm::radians(angle), glm::vec3(0.0f, 1.0f, 0.0f));
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-    // 2. Calculate Normal Matrix: Must be updated because 'model' changed
-    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-
-    // 3. Draw
-    nanosuit.Draw(myBasicShader);
-
-
-    // --- DRAW GROUND ---
-    // 1. Calculate Model Matrix: The reference code translates it down and scales it
-    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(0.5f));
-    glUniformMatrix4fv(modelLoc, 1, GL_FALSE, glm::value_ptr(model));
-
-    // 2. Calculate Normal Matrix: Must be updated again for the ground
-    normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-    glUniformMatrix3fv(normalMatrixLoc, 1, GL_FALSE, glm::value_ptr(normalMatrix));
-
-    // 3. Draw
-    ground.Draw(myBasicShader);
-}
-*/
 
 void initFBO() {
     // Generate and bind the framebuffer
@@ -503,7 +461,7 @@ glm::mat4 computeLightSpaceTrMatrix() {
     // 2. Light Projection (Orthographic for Directional Light)
     // Adjust these bounds to fit your scene (ground and suit)
     // ortho(left, right, bottom, top, near, far)
-    glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 50.0f);
+    glm::mat4 lightProjection = glm::ortho(-10.0f, 10.0f, -10.0f, 10.0f, 1.0f, 200.0f);
 
     return lightProjection * lightView;
 }
@@ -524,17 +482,24 @@ void drawObjects(gps::Shader shader, bool depthPass) {
 
     nanosuit.Draw(shader);
 
-    // --- DRAW GROUND ---
-    model = glm::translate(glm::mat4(1.0f), glm::vec3(0.0f, -1.0f, 0.0f));
-    model = glm::scale(model, glm::vec3(0.5f));
-    glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(model));
+    // --- DRAW CASTLE ---
+    shader.useShaderProgram();
 
+    // 1. Position it
+    glm::mat4 castleModel = glm::mat4(1.0f);
+    castleModel = glm::translate(castleModel, glm::vec3(0.0f, -1.0f, 0.0f)); // Lower it slightly if needed
+    // castleModel = glm::scale(castleModel, glm::vec3(0.5f)); // Enable this if it's still too big
+
+    glUniformMatrix4fv(glGetUniformLocation(shader.shaderProgram, "model"), 1, GL_FALSE, glm::value_ptr(castleModel));
+
+    // 2. Normals (Skip for shadow pass)
     if (!depthPass) {
-        normalMatrix = glm::mat3(glm::inverseTranspose(view * model));
-        glUniformMatrix3fv(glGetUniformLocation(shader.shaderProgram, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(normalMatrix));
+        glm::mat3 castleNormal = glm::mat3(glm::inverseTranspose(view * castleModel));
+        glUniformMatrix3fv(glGetUniformLocation(shader.shaderProgram, "normalMatrix"), 1, GL_FALSE, glm::value_ptr(castleNormal));
     }
 
-    ground.Draw(shader);
+    // 3. Draw
+    myCastle.Draw(shader);
 }
 
 void renderScene() {

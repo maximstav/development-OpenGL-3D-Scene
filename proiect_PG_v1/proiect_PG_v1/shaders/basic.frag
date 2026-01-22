@@ -39,7 +39,7 @@ float quadratic = 0.032f;
 
 float computeFog()
 {
-    float fogDensity = 0.07f;
+    float fogDensity = 0.02f;
     
     // Calculate position in View Space (Eye Space)
     vec4 fPosEye = view * model * vec4(fPosition, 1.0f);
